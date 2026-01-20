@@ -255,19 +255,13 @@ curl -X POST \
   "https://basket.databuddy.cc/batch?client_id=web_123"
 ```
 
-## Reference Documentation
+## Detailed Documentation
 
-For detailed documentation, see:
+For detailed documentation on specific topics, see:
 
-- [Core SDK Reference](references/core.md) - Browser tracking utilities and types
-- [React Integration](references/react.md) - React/Next.js component and hooks
-- [Node.js Integration](references/node.md) - Server-side tracking with batching
-- [Feature Flags](references/flags.md) - Feature flags for all platforms
-- [AI/LLM Tracking](references/ai-vercel.md) - Vercel AI SDK integration
-- [REST API Reference](references/api.md) - Full REST API documentation
-
-## Source Code
-
-- SDK: `packages/sdk/`
-- API: `apps/api/`
-- API Docs: `apps/docs/content/docs/api/`
+- [Core SDK](./databuddy-core/SKILL.md) - Browser tracking utilities and types
+- [React Integration](./databuddy-react/SKILL.md) - React/Next.js component and hooks
+- [Node.js Integration](./databuddy-node/SKILL.md) - Server-side tracking with batching
+- [Feature Flags](./databuddy-flags/SKILL.md) - Feature flags for all platforms
+- [AI/LLM Tracking](./databuddy-ai-vercel/SKILL.md) - Vercel AI SDK integration
+- [REST API Reference](./databuddy-api/SKILL.md) - Full REST API documentation

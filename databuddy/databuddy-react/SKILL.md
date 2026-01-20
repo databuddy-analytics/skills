@@ -1,6 +1,26 @@
-# React SDK Reference
+---
+name: databuddy-react
+description: Use the Databuddy React SDK for Next.js and React applications. Use when implementing analytics tracking in React components, setting up the Databuddy component in layouts, or using React hooks for event tracking.
+metadata:
+  author: databuddy
+  version: "2.3"
+---
+
+# Databuddy React SDK
 
 The React SDK (`@databuddy/sdk/react`) provides a drop-in component and hooks for React/Next.js applications.
+
+## External Documentation
+
+For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+
+## When to Use This Skill
+
+Use this skill when:
+- Setting up analytics in React or Next.js applications
+- Need React hooks for tracking events
+- Implementing the Databuddy component in layouts
+- Working with SSR-safe tracking in Next.js
 
 ## Installation
 
@@ -57,7 +77,7 @@ export default function App({ Component, pageProps }) {
 
 ### Props
 
-All props from `DatabuddyConfig` are supported. See [Core SDK Reference](./core.md) for full options.
+All props from `DatabuddyConfig` are supported. See [Core SDK Reference](../databuddy-core/SKILL.md) for full options.
 
 Key props:
 

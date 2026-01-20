@@ -1,6 +1,27 @@
-# Feature Flags Reference
+---
+name: databuddy-flags
+description: Use Databuddy feature flags for React, Node.js, and Vue applications. Use when implementing feature flags, A/B testing, gradual rollouts, or user-targeted feature toggles.
+metadata:
+  author: databuddy
+  version: "2.3"
+---
+
+# Databuddy Feature Flags
 
 The SDK provides feature flag support across all platforms (React, Node.js, Vue).
+
+## External Documentation
+
+For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+
+## When to Use This Skill
+
+Use this skill when:
+- Implementing feature flags in React, Next.js, Vue, or Node.js
+- Need A/B testing capabilities
+- Want user-targeted feature toggles
+- Implementing gradual rollouts
+- Need environment-based feature flags
 
 ## React Feature Flags
 

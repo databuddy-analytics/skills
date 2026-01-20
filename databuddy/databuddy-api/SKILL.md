@@ -1,6 +1,27 @@
-# REST API Reference
+---
+name: databuddy-api
+description: Use the Databuddy REST API for programmatic access to analytics data. Use when querying analytics data, building custom dashboards, sending events via API, or integrating analytics into backend services.
+metadata:
+  author: databuddy
+  version: "2.3"
+---
+
+# Databuddy REST API
 
 The Databuddy REST API provides programmatic access to analytics data.
+
+## External Documentation
+
+For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+
+## When to Use This Skill
+
+Use this skill when:
+- Querying analytics data programmatically
+- Building custom dashboards or reports
+- Sending events via REST API
+- Integrating analytics into backend services
+- Need to access analytics data outside of the SDK
 
 ## Base URLs
 

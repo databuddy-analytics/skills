@@ -1,6 +1,27 @@
-# AI/LLM Analytics Reference
+---
+name: databuddy-ai-vercel
+description: Use Databuddy LLM observability for Vercel AI SDK. Use when implementing LLM analytics, tracking AI model usage, monitoring token costs, or observing AI application performance.
+metadata:
+  author: databuddy
+  version: "2.3"
+---
+
+# Databuddy AI/LLM Analytics
 
 The AI SDK integration (`@databuddy/sdk/ai/vercel`) provides LLM observability for applications using the Vercel AI SDK.
+
+## External Documentation
+
+For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+
+## When to Use This Skill
+
+Use this skill when:
+- Implementing LLM observability with Vercel AI SDK
+- Need to track AI model usage and costs
+- Want to monitor token consumption
+- Need to observe AI application performance
+- Building AI applications with multiple providers
 
 ## Installation
 

@@ -1,6 +1,27 @@
-# Core SDK Reference
+---
+name: databuddy-core
+description: Use the core Databuddy SDK for browser-side tracking utilities, event tracking, and global tracker access. Use when implementing analytics in vanilla JavaScript or when you need direct access to the core tracking functions.
+metadata:
+  author: databuddy
+  version: "2.3"
+---
+
+# Databuddy Core SDK
 
 The core SDK (`@databuddy/sdk`) provides browser-side tracking utilities and types.
+
+## External Documentation
+
+For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+
+## When to Use This Skill
+
+Use this skill when:
+- Implementing analytics in vanilla JavaScript applications
+- Need direct access to core tracking functions
+- Working with the global tracker (`window.databuddy`)
+- Setting up declarative tracking with data attributes
+- Configuring advanced tracking options and filters
 
 ## Installation
 
@@ -151,7 +172,7 @@ Properties are auto-converted from kebab-case to camelCase:
 ### track
 
 ```typescript
-import { track } from "@databuddy/sdk/react";
+import { track } from "@databuddy/sdk";
 
 await track("purchase", {
   product_id: "sku-123",
@@ -164,7 +185,7 @@ await track("purchase", {
 Force send all queued events:
 
 ```typescript
-import { flush } from "@databuddy/sdk/react";
+import { flush } from "@databuddy/sdk";
 
 await flush();
 ```
@@ -174,7 +195,7 @@ await flush();
 Reset the session (generates new IDs):
 
 ```typescript
-import { clear } from "@databuddy/sdk/react";
+import { clear } from "@databuddy/sdk";
 
 clear();
 ```
@@ -184,7 +205,7 @@ clear();
 Get current anonymous and session IDs:
 
 ```typescript
-import { getTrackingIds } from "@databuddy/sdk/react";
+import { getTrackingIds } from "@databuddy/sdk";
 
 const { anonymousId, sessionId } = getTrackingIds();
 ```

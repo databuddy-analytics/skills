@@ -1,6 +1,27 @@
-# Node.js SDK Reference
+---
+name: databuddy-node
+description: Use the Databuddy Node.js SDK for server-side tracking with batching, middleware, and deduplication. Use when implementing analytics in Node.js servers, API routes, serverless functions, or when you need server-side event tracking with advanced features.
+metadata:
+  author: databuddy
+  version: "2.3"
+---
+
+# Databuddy Node.js SDK
 
 The Node.js SDK (`@databuddy/sdk/node`) provides server-side tracking with batching, middleware, and deduplication support.
+
+## External Documentation
+
+For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+
+## When to Use This Skill
+
+Use this skill when:
+- Implementing server-side analytics in Node.js applications
+- Tracking events from API routes or serverless functions
+- Need event batching and deduplication
+- Want to use middleware for event transformation
+- Building custom analytics pipelines
 
 ## Installation
 
