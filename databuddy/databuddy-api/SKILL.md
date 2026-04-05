@@ -94,7 +94,7 @@ Response: `{ "service": "flags", "status": "ok", "version": "1.0.0" }`
 Accepts a single event object or an array of up to 100 events.
 
 **Authentication** (one of):
-- `Authorization: Bearer dbdy_xxx` header (API key with `track:events` scope)
+- `Authorization: Bearer $DATABUDDY_API_KEY` header (API key with `track:events` scope)
 - `?website_id=xxx` query param (public tracking via website ID)
 
 **Event schema:**
@@ -141,7 +141,7 @@ Accepts a single event object or an array of up to 100 events.
 
 ```bash
 curl -X POST https://basket.databuddy.cc/track \
-  -H "Authorization: Bearer dbdy_your_api_key" \
+  -H "Authorization: Bearer $DATABUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "purchase", "properties": {"amount": 99.99}}'
 ```
@@ -149,7 +149,7 @@ curl -X POST https://basket.databuddy.cc/track \
 **Single event with website ID:**
 
 ```bash
-curl -X POST "https://basket.databuddy.cc/track?website_id=web_123" \
+curl -X POST "https://basket.databuddy.cc/track?website_id=$DATABUDDY_CLIENT_ID" \
   -H "Content-Type: application/json" \
   -d '{"name": "page_view", "properties": {"path": "/pricing"}}'
 ```
@@ -158,10 +158,12 @@ curl -X POST "https://basket.databuddy.cc/track?website_id=web_123" \
 
 ```bash
 curl -X POST https://basket.databuddy.cc/track \
-  -H "Authorization: Bearer dbdy_your_api_key" \
+  -H "Authorization: Bearer $DATABUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '[
     {"name": "event_1", "properties": {"key": "value"}},
     {"name": "event_2", "properties": {"key": "value"}}
   ]'
 ```
+
+> Always read API keys from environment variables. Never hardcode credentials in code or commands.

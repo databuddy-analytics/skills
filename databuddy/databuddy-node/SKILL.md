@@ -151,6 +151,8 @@ See [flags skill](../databuddy-flags/SKILL.md) for full feature flags documentat
 
 ## Authentication
 
-The Node.js SDK authenticates via `Authorization: Bearer <apiKey>` header. The `apiKey` (format: `dbdy_xxx`) is required and must be a string.
+The Node.js SDK authenticates via `Authorization: Bearer` header using the configured `apiKey` (read from `DATABUDDY_API_KEY` env var).
 
 Events are sent to `POST /track` on the configured `apiUrl` (default: `https://basket.databuddy.cc`). Single events send one object; batches send an array.
+
+> Never hardcode API keys. Always use `process.env.DATABUDDY_API_KEY`.
