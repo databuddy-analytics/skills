@@ -1,27 +1,6 @@
----
-name: databuddy-core
-description: Use the core Databuddy SDK for browser-side tracking utilities, event tracking, and global tracker access. Use when implementing analytics in vanilla JavaScript or when you need direct access to the core tracking functions.
-metadata:
-  author: databuddy
-  version: "2.3"
----
+# Core SDK (`@databuddy/sdk`)
 
-# Databuddy Core SDK
-
-The core SDK (`@databuddy/sdk`) provides browser-side tracking utilities and types.
-
-## External Documentation
-
-For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
-
-## When to Use This Skill
-
-Use this skill when:
-- Implementing analytics in vanilla JavaScript applications
-- Need direct access to core tracking functions
-- Working with the global tracker (`window.databuddy`)
-- Setting up declarative tracking with data attributes
-- Configuring advanced tracking options and filters
+Browser-side tracking utilities. Inject the script, track events, and read IDs.
 
 ## Installation
 
@@ -29,183 +8,120 @@ Use this skill when:
 bun add @databuddy/sdk
 ```
 
-## Exports
+## Exported Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `track` | `(name: string, properties?: Record<string, unknown>) => void` | Track a custom event. No-op on server. |
+| `trackError` | `(message: string, properties?: { filename?, lineno?, colno?, stack?, error_type?, ... }) => void` | Convenience wrapper: calls `track("error", ...)` |
+| `clear` | `() => void` | Reset session. Generates new anonymous/session IDs. Call after logout. |
+| `flush` | `() => void` | Force-send all queued events immediately. |
+| `isTrackerAvailable` | `() => boolean` | Check if tracker script has loaded. |
+| `getTracker` | `() => DatabuddyTracker \| null` | Get the raw tracker instance. |
+| `getAnonymousId` | `(urlParams?: URLSearchParams) => string \| null` | Get anonymous ID. Priority: URL params > localStorage (`did` key). |
+| `getSessionId` | `(urlParams?: URLSearchParams) => string \| null` | Get session ID. Priority: URL params > sessionStorage (`did_session` key). |
+| `getTrackingIds` | `(urlParams?: URLSearchParams) => { anonId, sessionId }` | Both IDs in one call. |
+| `getTrackingParams` | `(urlParams?: URLSearchParams) => string` | IDs as query string: `"anonId=xxx&sessionId=yyy"`. For cross-domain links. |
+| `detectClientId` | `(explicit?: string) => string \| undefined` | Resolve client ID from arg or env vars. |
+
+## DatabuddyConfig (Browser)
 
 ```typescript
-import {
-  detectClientId,
-  createScript,
-  isScriptInjected,
-  // Tracker utilities
-  track,
-  trackError,
-  flush,
-  clear,
-  getTracker,
-  isTrackerAvailable,
-  getAnonymousId,
-  getSessionId,
-  getTrackingIds,
-  getTrackingParams,
-} from "@databuddy/sdk";
+interface DatabuddyConfig {
+  clientId?: string;           // Auto-detected from NEXT_PUBLIC_DATABUDDY_CLIENT_ID
+  apiUrl?: string;             // Default: "https://basket.databuddy.cc"
+  scriptUrl?: string;          // Default: "https://cdn.databuddy.cc/databuddy.js"
+  disabled?: boolean;          // Default: false
+  debug?: boolean;             // Default: false
+
+  // Tracking features
+  trackPerformance?: boolean;  // Default: true
+  trackWebVitals?: boolean;    // Default: false
+  trackErrors?: boolean;       // Default: false
+  trackInteractions?: boolean; // Default: false
+  trackOutgoingLinks?: boolean;// Default: false
+  trackHashChanges?: boolean;  // Default: false
+  trackAttributes?: boolean;   // Default: false (data-* attributes)
+
+  // Optimization
+  samplingRate?: number;       // 0.0-1.0, default: 1.0
+  enableBatching?: boolean;    // Default: true
+  batchSize?: number;          // Default: 10, max: 50
+  batchTimeout?: number;       // Default: 2000ms (100-30000)
+  enableRetries?: boolean;     // Default: true
+  maxRetries?: number;         // Default: 3
+  initialRetryDelay?: number;  // Default: 500ms
+
+  // Filtering
+  skipPatterns?: string[];     // Glob patterns to skip tracking
+  maskPatterns?: string[];     // Glob patterns to mask paths
+  filter?: (event: any) => boolean;
+
+  // Advanced
+  ignoreBotDetection?: boolean;// Default: false
+  usePixel?: boolean;          // Use 1x1 pixel instead of script
+  sdk?: string;                // Default: "web"
+  sdkVersion?: string;         // Auto-set from package version
+  clientSecret?: string;       // Server-side only
+}
 ```
 
-## Configuration
+## Global Tracker (`window.databuddy` / `window.db`)
 
-### DatabuddyConfig
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `clientId` | `string` | Auto-detect | Project client ID (auto-detects from `NEXT_PUBLIC_DATABUDDY_CLIENT_ID`) |
-| `clientSecret` | `string` | — | Server-side only secret |
-| `apiUrl` | `string` | `https://basket.databuddy.cc` | Custom API endpoint |
-| `scriptUrl` | `string` | `https://cdn.databuddy.cc/databuddy.js` | Custom script URL |
-| `disabled` | `boolean` | `false` | Disable all tracking |
-| `debug` | `boolean` | `false` | Enable debug logging |
-
-### Tracking Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `trackHashChanges` | `boolean` | `false` | Track URL hash changes |
-| `trackAttributes` | `boolean` | `false` | Track data-* attributes |
-| `trackOutgoingLinks` | `boolean` | `false` | Track outgoing link clicks |
-| `trackInteractions` | `boolean` | `false` | Track user interactions |
-| `trackScrollDepth` | `boolean` | `false` | Track scroll depth |
-| `trackPerformance` | `boolean` | `true` | Track performance metrics |
-| `trackWebVitals` | `boolean` | `false` | Track Web Vitals |
-| `trackErrors` | `boolean` | `false` | Track JavaScript errors |
-
-### Optimization Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `samplingRate` | `number` | `1.0` | Sampling rate (0.0-1.0) |
-| `enableRetries` | `boolean` | `false` | Retry failed requests |
-| `maxRetries` | `number` | `3` | Max retry attempts |
-| `initialRetryDelay` | `number` | `500` | Initial retry delay (ms) |
-| `enableBatching` | `boolean` | `true` | Enable event batching |
-| `batchSize` | `number` | `10` | Events per batch (1-50) |
-| `batchTimeout` | `number` | `2000` | Batch timeout (ms) |
-| `ignoreBotDetection` | `boolean` | `false` | Track bots |
-| `usePixel` | `boolean` | `false` | Use pixel tracking |
-
-### Filtering Options
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `filter` | `(event) => boolean` | Filter function to skip events |
-| `skipPatterns` | `string[]` | Glob patterns to skip tracking |
-| `maskPatterns` | `string[]` | Glob patterns to mask paths |
-
-## Global Tracker
-
-The tracker is available at `window.databuddy` or `window.db`:
+The tracker script exposes a global interface:
 
 ```typescript
-// Track custom event
-window.databuddy.track("signup", { plan: "pro" });
-
-// Manual page view
-window.databuddy.screenView({ section: "pricing" });
-
-// Set global properties
-window.databuddy.setGlobalProperties({
-  plan: "enterprise",
-  abVariant: "checkout-v2",
-});
-
-// Clear session (call on logout)
-window.databuddy.clear();
-
-// Force flush queued events
-window.databuddy.flush();
+interface DatabuddyTracker {
+  track(eventName: string, properties?: Record<string, unknown>): void;
+  screenView(properties?: Record<string, unknown>): void;
+  setGlobalProperties(properties: Record<string, unknown>): void;
+  clear(): void;
+  flush(): void;
+  options: DatabuddyConfig;
+}
 ```
 
-## Event Types
+`window.db` is a shorthand with the same methods: `track`, `screenView`, `clear`, `flush`, `setGlobalProperties`.
 
-### Pre-defined Events
+## Pre-defined Event Types
 
-| Event | Properties |
-|-------|------------|
-| `screen_view` | `time_on_page`, `scroll_depth`, `interaction_count`, `is_bounce` |
-| `page_exit` | `time_on_page`, `scroll_depth`, `interaction_count`, `page_count`, `is_bounce` |
+| Event | Key Properties |
+|-------|---------------|
+| `screen_view` | `page_count`, `time_on_page`, `scroll_depth`, `interaction_count` |
+| `page_exit` | `time_on_page`, `scroll_depth`, `interaction_count`, `page_count` |
 | `button_click` | `button_text`, `button_type`, `button_id`, `element_class` |
-| `link_out` | `href`, `text`, `target_domain` |
 | `form_submit` | `form_id`, `form_name`, `form_type`, `success` |
-| `web_vitals` | `fcp`, `lcp`, `cls`, `fid`, `ttfb`, `load_time` |
-| `error` | `message`, `filename`, `lineno`, `colno`, `stack` |
+| `link_out` | `href`, `text`, `target_domain` |
+| `web_vitals` | `fcp`, `lcp`, `cls`, `fid`, `ttfb`, `load_time`, `dom_ready_time`, `render_time`, `request_time` |
+| `error` | `message`, `filename`, `lineno`, `colno`, `stack`, `error_type` |
 
-### Base Event Properties
+Base properties attached to all events: `__path`, `__referrer`, `__title`, `__timestamp_ms`, `language`, `timezone`, `viewport_size`, `sessionId`, `page_count`, `utm_*`.
 
-All events include these base properties:
-
-- `__path` - Page URL
-- `__title` - Page title
-- `__referrer` - Referrer URL
-- `__timestamp_ms` - Timestamp
-- `sessionId` - Session ID
-- `viewport_size` - Viewport dimensions
-- `timezone` - User timezone
-- `language` - User language
-- UTM parameters (`utm_source`, `utm_medium`, etc.)
-
-## Declarative Tracking
-
-Use data attributes for click tracking without JavaScript:
+## Declarative Tracking (HTML data attributes)
 
 ```html
-<button
-  data-track="cta_clicked"
-  data-button-text="Get Started"
-  data-location="hero"
->
+<button data-track="cta_clicked" data-button-text="Get Started" data-location="hero">
   Get Started
 </button>
+
+<a href="/pricing" data-track="nav_link_clicked" data-destination="pricing">
+  Pricing
+</a>
 ```
 
-Properties are auto-converted from kebab-case to camelCase:
-`{ buttonText: "Get Started", location: "hero" }`
+Data attributes are auto-converted from kebab-case to camelCase: `data-button-text` becomes `{ buttonText: "Get Started" }`.
 
-## SDK Functions
+Requires `trackAttributes: true` in config.
 
-### track
-
-```typescript
-import { track } from "@databuddy/sdk";
-
-await track("purchase", {
-  product_id: "sku-123",
-  amount: 99.99,
-});
-```
-
-### flush
-
-Force send all queued events:
+## Cross-Domain Tracking
 
 ```typescript
-import { flush } from "@databuddy/sdk";
+import { getTrackingParams } from "@databuddy/sdk";
 
-await flush();
-```
+// Append to outgoing URLs
+const url = `https://app.example.com?${getTrackingParams()}`;
 
-### clear
-
-Reset the session (generates new IDs):
-
-```typescript
-import { clear } from "@databuddy/sdk";
-
-clear();
-```
-
-### getTrackingIds
-
-Get current anonymous and session IDs:
-
-```typescript
-import { getTrackingIds } from "@databuddy/sdk";
-
-const { anonymousId, sessionId } = getTrackingIds();
+// On the receiving page, pass URL params to get the same IDs
+const params = new URLSearchParams(window.location.search);
+const { anonId, sessionId } = getTrackingIds(params);
 ```

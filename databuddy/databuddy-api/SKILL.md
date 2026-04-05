@@ -1,369 +1,167 @@
----
-name: databuddy-api
-description: Use the Databuddy REST API for programmatic access to analytics data. Use when querying analytics data, building custom dashboards, sending events via API, or integrating analytics into backend services.
-metadata:
-  author: databuddy
-  version: "2.3"
----
+# REST API
 
-# Databuddy REST API
+Public API endpoints for feature flags and event tracking.
 
-The Databuddy REST API provides programmatic access to analytics data.
+## Feature Flags API
 
-## External Documentation
+**Base URL:** `https://api.databuddy.cc/public/v1/flags`
 
-For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+All flag endpoints return `Cache-Control: public, max-age=15, s-maxage=30, stale-while-revalidate=15`.
 
-## When to Use This Skill
+### GET `/evaluate` — Evaluate a Single Flag
 
-Use this skill when:
-- Querying analytics data programmatically
-- Building custom dashboards or reports
-- Sending events via REST API
-- Integrating analytics into backend services
-- Need to access analytics data outside of the SDK
+Query params:
 
-## Base URLs
+| Param | Required | Description |
+|-------|----------|-------------|
+| `key` | Yes | Flag key |
+| `clientId` | Yes | Website or organization client ID |
+| `userId` | No | User ID for targeting |
+| `email` | No | User email for targeting |
+| `organizationId` | No | Organization ID for targeting |
+| `teamId` | No | Team ID for targeting |
+| `properties` | No | JSON string of custom properties |
+| `environment` | No | Target environment |
 
-| Service | URL | Purpose |
-|---------|-----|---------|
-| Analytics API | `https://api.databuddy.cc/v1` | Query analytics data |
-| Event Tracking | `https://basket.databuddy.cc` | Send custom events |
-
-## Authentication
-
-### API Key
-
-Use your API key in the `x-api-key` header:
-
-```bash
-curl -H "x-api-key: dbdy_your_api_key" \
-  https://api.databuddy.cc/v1/query/websites
-```
-
-Or use Bearer token format:
-
-```bash
-curl -H "Authorization: Bearer dbdy_your_api_key" \
-  https://api.databuddy.cc/v1/query/websites
-```
-
-### Getting an API Key
-
-1. Go to [Dashboard → Organization Settings → API Keys](https://app.databuddy.cc/organizations/settings/api-keys)
-2. Click **Create API Key**
-3. Select required scopes
-4. Optionally restrict to specific websites
-
-### API Key Scopes
-
-| Scope | Permission |
-|-------|------------|
-| `read:data` | Query analytics data |
-| `write:data` | Send custom events |
-| `read:websites` | List accessible websites |
-| `manage:websites` | Create and update websites |
-
-## Query Endpoints
-
-### List Websites
-
-```http
-GET /v1/query/websites
-```
-
-**Response:**
+Response: `FlagResult`
 
 ```json
 {
-  "success": true,
-  "websites": [
-    {
-      "id": "web_123",
-      "name": "My Website",
-      "domain": "example.com"
-    }
-  ]
+  "enabled": true,
+  "value": true,
+  "variant": "v2",
+  "payload": { "discount": 20 },
+  "reason": "USER_RULE_MATCH"
 }
 ```
 
-### Get Query Types
+**Reason codes:** `FLAG_NOT_FOUND`, `MISSING_REQUIRED_PARAMS`, `USER_RULE_MATCH`, `TARGET_GROUP_MATCH`, `MULTIVARIANT_EVALUATED`, `ROLLOUT_ENABLED`, `ROLLOUT_DISABLED`, `BOOLEAN_DEFAULT`, `DEFAULT_VALUE`, `EVALUATION_ERROR`
 
-```http
-GET /v1/query/types?include_meta=true
-```
+### GET `/bulk` — Evaluate Multiple Flags
 
-Returns available query types and their configurations.
+Query params: same as `/evaluate` except `key` is replaced by:
 
-### Execute Query
+| Param | Required | Description |
+|-------|----------|-------------|
+| `clientId` | Yes | Website or organization client ID |
+| `keys` | No | Comma-separated flag keys (omit for all flags) |
 
-```http
-POST /v1/query?website_id={id}
-```
-
-**Request Body:**
+Response:
 
 ```json
 {
-  "parameters": ["summary", "pages", "browser_name"],
-  "startDate": "2024-01-01",
-  "endDate": "2024-01-31",
-  "limit": 100,
-  "filters": [
-    { "field": "country", "op": "in", "value": ["US", "CA"] }
+  "flags": {
+    "dark-mode": { "enabled": true, "value": true, "payload": null, "reason": "BOOLEAN_DEFAULT" },
+    "pricing-tier": { "enabled": true, "value": "pro", "variant": "pro", "payload": null, "reason": "MULTIVARIANT_EVALUATED" }
+  },
+  "count": 2
+}
+```
+
+### GET `/definitions` — List Flag Definitions
+
+Query params:
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `clientId` | Yes | Website or organization client ID |
+| `environment` | No | Target environment |
+
+Response:
+
+```json
+{
+  "flags": [
+    { "key": "dark-mode", "description": "...", "type": "boolean", "variants": null },
+    { "key": "pricing-tier", "description": "...", "type": "multivariant", "variants": [...] }
   ],
-  "granularity": "daily"
+  "count": 2
 }
 ```
 
-**Or use presets:**
+### GET `/health` — Health Check
 
-```json
-{
-  "parameters": ["summary", "pages"],
-  "preset": "last_30d",
-  "limit": 10
-}
-```
+Response: `{ "service": "flags", "status": "ok", "version": "1.0.0" }`
 
-**Date Presets:**
-
-| Preset | Description |
-|--------|-------------|
-| `today` | Current day |
-| `yesterday` | Previous day |
-| `last_7d` | Last 7 days |
-| `last_14d` | Last 14 days |
-| `last_30d` | Last 30 days |
-| `last_90d` | Last 90 days |
-| `this_week` | Current week |
-| `last_week` | Previous full week |
-| `this_month` | Current month to date |
-| `last_month` | Previous full month |
-| `this_year` | Current year to date |
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "parameter": "summary",
-      "success": true,
-      "data": [
-        { "date": "2024-01-01", "pageviews": 1250, "visitors": 890 }
-      ]
-    },
-    {
-      "parameter": "pages",
-      "success": true,
-      "data": [
-        { "path": "/", "pageviews": 450, "visitors": 320 }
-      ]
-    }
-  ]
-}
-```
-
-## Available Query Types
-
-### Website Analytics
-
-| Type | Description |
-|------|-------------|
-| `summary` | Overall website metrics and KPIs |
-| `pages` | Page views and performance by URL |
-| `traffic` | Traffic sources and referrers |
-| `browser_name` | Browser usage breakdown |
-| `os_name` | Operating system breakdown |
-| `device_types` | Device category (mobile/desktop/tablet) |
-| `countries` | Visitors by country |
-| `cities` | Visitors by city |
-| `errors` | JavaScript errors |
-| `performance` | Web vitals and load times |
-| `sessions` | Session-based analytics |
-| `custom_events` | Custom event data |
-| `profiles` | User profile analytics |
-| `outbound_links` | External link clicks |
-| `engagement` | User engagement metrics |
-
-### Link Shortener Analytics
-
-Use `link_id` instead of `website_id`:
-
-| Type | Description |
-|------|-------------|
-| `link_total_clicks` | Total click count |
-| `link_clicks_by_day` | Daily click breakdown |
-| `link_top_referrers` | Top traffic sources |
-| `link_top_countries` | Top countries |
-| `link_top_devices` | Device breakdown |
-| `link_top_browsers` | Browser breakdown |
-
-## Filter Operations
-
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `eq` | Equals | `{ "field": "country", "op": "eq", "value": "US" }` |
-| `ne` | Not equals | `{ "field": "device_type", "op": "ne", "value": "bot" }` |
-| `contains` | Contains substring | `{ "field": "path", "op": "contains", "value": "/blog" }` |
-| `starts_with` | Starts with | `{ "field": "path", "op": "starts_with", "value": "/docs" }` |
-| `in` | Value in array | `{ "field": "country", "op": "in", "value": ["US", "CA"] }` |
-| `not_in` | Not in array | `{ "field": "browser", "op": "not_in", "value": ["bot"] }` |
+---
 
 ## Event Tracking API
 
-### Send Single Event
+**Base URL:** `https://basket.databuddy.cc`
 
-```http
-POST https://basket.databuddy.cc/?client_id={website_id}
-```
+### POST `/track` — Send Events
 
-**Request Body:**
+Accepts a single event object or an array of up to 100 events.
+
+**Authentication** (one of):
+- `Authorization: Bearer dbdy_xxx` header (API key with `track:events` scope)
+- `?website_id=xxx` query param (public tracking via website ID)
+
+**Event schema:**
 
 ```json
 {
-  "type": "custom",
   "name": "purchase",
-  "anonymousId": "anon_user_123",
-  "sessionId": "session_456",
-  "timestamp": 1704067200000,
-  "properties": {
-    "value": 99.99,
-    "currency": "USD",
-    "product_id": "prod_123"
-  }
+  "namespace": "billing",
+  "timestamp": 1712345678000,
+  "properties": { "amount": 99.99, "currency": "USD" },
+  "anonymousId": "anon_abc123",
+  "sessionId": "sess_xyz",
+  "websiteId": "web_123",
+  "source": "backend"
 }
 ```
 
-**Minimal Event:**
+| Field | Type | Limits | Required |
+|-------|------|--------|----------|
+| `name` | `string` | 1-256 chars | Yes |
+| `namespace` | `string` | max 64 chars | No |
+| `timestamp` | `number \| string \| Date` | — | No (auto-set) |
+| `properties` | `Record<string, unknown>` | — | No |
+| `anonymousId` | `string` | max 256 chars | No |
+| `sessionId` | `string` | max 256 chars | No |
+| `websiteId` | `string` | — | No |
+| `source` | `string` | max 64 chars | No |
 
-```json
-{
-  "type": "custom",
-  "name": "newsletter_signup",
-  "properties": { "source": "footer_form" }
-}
-```
+**Batch:** Send an array of events (max 100 items).
 
-### Event Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `"custom"` |
-| `name` | string | Yes | Event name (1-128 chars) |
-| `anonymousId` | string | No | Anonymous user identifier |
-| `sessionId` | string | No | Session identifier |
-| `timestamp` | number | No | Unix timestamp in ms |
-| `properties` | object | No | Custom properties |
-
-### Batch Events
-
-```http
-POST https://basket.databuddy.cc/batch?client_id={website_id}
-```
-
-**Request Body:**
-
-```json
-[
-  { "type": "custom", "name": "event1", "properties": {...} },
-  { "type": "custom", "name": "event2", "properties": {...} }
-]
-```
+**Limits:**
+- Max payload: 1MB (single), 5MB (batch)
+- Max batch size: 100 events
 
 **Response:**
 
 ```json
-{
-  "status": "success",
-  "batch": true,
-  "processed": 2,
-  "results": [
-    { "status": "success", "type": "custom", "eventId": "evt_123" },
-    { "status": "success", "type": "custom", "eventId": "evt_124" }
-  ]
-}
+{ "status": "success", "type": "custom_event", "count": 1 }
 ```
 
-## Custom Queries
+### Examples
 
-For advanced queries with custom aggregations:
+**Single event with API key:**
 
-```http
-POST /v1/query/custom?website_id={id}
+```bash
+curl -X POST https://basket.databuddy.cc/track \
+  -H "Authorization: Bearer dbdy_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "purchase", "properties": {"amount": 99.99}}'
 ```
 
-**Request Body:**
+**Single event with website ID:**
 
-```json
-{
-  "query": {
-    "table": "events",
-    "selects": [
-      { "field": "path", "aggregate": "count", "alias": "pageviews" },
-      { "field": "anonymous_id", "aggregate": "uniq", "alias": "visitors" }
-    ],
-    "filters": [
-      { "field": "country", "operator": "eq", "value": "US" }
-    ],
-    "groupBy": ["path"]
-  },
-  "startDate": "2024-01-01",
-  "endDate": "2024-01-31",
-  "limit": 100
-}
+```bash
+curl -X POST "https://basket.databuddy.cc/track?website_id=web_123" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "page_view", "properties": {"path": "/pricing"}}'
 ```
 
-### Available Tables
+**Batch events:**
 
-| Table | Description |
-|-------|-------------|
-| `events` | Page views and custom events |
-| `sessions` | Session-level data |
-| `profiles` | User profile data |
-| `errors` | JavaScript errors |
-| `performance` | Web vitals metrics |
-
-### Aggregate Functions
-
-| Function | Description |
-|----------|-------------|
-| `count` | Count rows |
-| `uniq` | Count unique values |
-| `sum` | Sum numeric values |
-| `avg` | Average value |
-| `max` | Maximum value |
-| `min` | Minimum value |
-
-## Error Codes
-
-| Code | Meaning |
-|------|---------|
-| `AUTH_REQUIRED` | No API key or session provided |
-| `ACCESS_DENIED` | No access to requested resource |
-| `INVALID_API_KEY` | API key invalid or revoked |
-| `INSUFFICIENT_SCOPE` | API key lacks required scope |
-| `RATE_LIMITED` | Too many requests |
-
-## Rate Limits
-
-- Standard queries: 200+ requests/minute
-- Custom queries: 30 requests/minute
-
-## Health Check
-
-```http
-GET /health
-```
-
-```json
-{
-  "clickhouse": true,
-  "database": true,
-  "redis": true,
-  "success": true,
-  "version": "1.0.0"
-}
+```bash
+curl -X POST https://basket.databuddy.cc/track \
+  -H "Authorization: Bearer dbdy_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {"name": "event_1", "properties": {"key": "value"}},
+    {"name": "event_2", "properties": {"key": "value"}}
+  ]'
 ```

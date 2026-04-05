@@ -1,36 +1,25 @@
----
-name: databuddy-react
-description: Use the Databuddy React SDK for Next.js and React applications. Use when implementing analytics tracking in React components, setting up the Databuddy component in layouts, or using React hooks for event tracking.
-metadata:
-  author: databuddy
-  version: "2.3"
----
+# React SDK (`@databuddy/sdk/react`)
 
-# Databuddy React SDK
+Drop-in component for React/Next.js and feature flag hooks.
 
-The React SDK (`@databuddy/sdk/react`) provides a drop-in component and hooks for React/Next.js applications.
+## Exports
 
-## External Documentation
+**Component:**
+- `Databuddy` — Injects the tracker script into `<head>`. Renders nothing.
 
-For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+**Flags (see [flags skill](../databuddy-flags/SKILL.md) for full details):**
+- `FlagsProvider` — Context provider for feature flags
+- `useFlag(key: string)` — Get a single flag's state
+- `useFlags()` — Access the full flags context
 
-## When to Use This Skill
+**Core re-exports** (from `@databuddy/sdk`):
+- `track`, `trackError`, `clear`, `flush`
+- `getAnonymousId`, `getSessionId`, `getTrackingIds`, `getTrackingParams`
+- `isTrackerAvailable`, `getTracker`
 
-Use this skill when:
-- Setting up analytics in React or Next.js applications
-- Need React hooks for tracking events
-- Implementing the Databuddy component in layouts
-- Working with SSR-safe tracking in Next.js
+## `<Databuddy />` Component
 
-## Installation
-
-```bash
-bun add @databuddy/sdk
-```
-
-## Databuddy Component
-
-The `<Databuddy />` component injects the tracking script. Place it in your root layout.
+Accepts all `DatabuddyConfig` props. Auto-detects `clientId` from `NEXT_PUBLIC_DATABUDDY_CLIENT_ID`.
 
 ### Next.js App Router
 
@@ -40,15 +29,10 @@ import { Databuddy } from "@databuddy/sdk/react";
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html>
       <body>
         {children}
-        <Databuddy
-          clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID}
-          trackWebVitals
-          trackErrors
-          trackPerformance
-        />
+        <Databuddy trackWebVitals trackErrors />
       </body>
     </html>
   );
@@ -65,158 +49,56 @@ export default function App({ Component, pageProps }) {
   return (
     <>
       <Component {...pageProps} />
-      <Databuddy
-        clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID}
-        trackWebVitals
-        trackErrors
-      />
+      <Databuddy trackWebVitals trackErrors />
     </>
   );
 }
 ```
 
-### Props
-
-All props from `DatabuddyConfig` are supported. See [Core SDK Reference](../databuddy-core/SKILL.md) for full options.
-
-Key props:
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `clientId` | `string` | Auto-detect | Your project client ID |
-| `disabled` | `boolean` | `false` | Disable tracking |
-| `trackWebVitals` | `boolean` | `false` | Track Web Vitals |
-| `trackErrors` | `boolean` | `false` | Track JS errors |
-| `trackPerformance` | `boolean` | `true` | Track performance |
-| `trackScrollDepth` | `boolean` | `false` | Track scroll depth |
-| `trackOutgoingLinks` | `boolean` | `false` | Track outgoing clicks |
-| `debug` | `boolean` | `false` | Enable debug logging |
-
-### Auto-detection
-
-The component auto-detects `clientId` from `NEXT_PUBLIC_DATABUDDY_CLIENT_ID` environment variable.
-
-### SSR Safety
-
-The component is SSR-safe. It only injects the script on the client side and renders nothing to the DOM.
-
-## Exported Functions
-
-Re-exported from core for convenience:
-
-```typescript
-import {
-  track,
-  trackError,
-  flush,
-  clear,
-  getTracker,
-  isTrackerAvailable,
-  getAnonymousId,
-  getSessionId,
-  getTrackingIds,
-  getTrackingParams,
-} from "@databuddy/sdk/react";
-```
-
-## Examples
-
 ### Disable in Development
 
 ```tsx
-<Databuddy
-  disabled={process.env.NODE_ENV === "development"}
-  clientId="..."
-/>
+<Databuddy disabled={process.env.NODE_ENV === "development"} trackWebVitals />
 ```
 
-### With All Tracking Features
+### All Features Enabled
 
 ```tsx
 <Databuddy
-  clientId="..."
   trackWebVitals
   trackErrors
-  trackPerformance
-  trackScrollDepth
-  trackOutgoingLinks
   trackInteractions
+  trackOutgoingLinks
   trackHashChanges
-/>
-```
-
-### With Filtering
-
-```tsx
-<Databuddy
-  clientId="..."
-  skipPatterns={["/admin/**", "/_next/**"]}
-  maskPatterns={["/users/*", "/orders/*"]}
-  filter={(event) => !event.path?.includes("/internal")}
-/>
-```
-
-### With Batching Configuration
-
-```tsx
-<Databuddy
-  clientId="..."
-  enableBatching
-  batchSize={20}
-  batchTimeout={5000}
-/>
-```
-
-### With Sampling
-
-```tsx
-<Databuddy
-  clientId="..."
-  samplingRate={0.5} // Track 50% of sessions
+  trackAttributes
+  samplingRate={0.5}
 />
 ```
 
 ## Custom Event Tracking
 
-Use the `track` function or `window.databuddy.track`:
-
 ```tsx
-import { track } from "@databuddy/sdk/react";
+import { track, trackError } from "@databuddy/sdk/react";
 
-function PurchaseButton({ product }) {
-  const handlePurchase = async () => {
-    await completePurchase(product);
-    
-    track("purchase", {
-      product_id: product.id,
-      product_name: product.name,
-      amount: product.price,
-      currency: "USD",
-    });
-  };
-
-  return <button onClick={handlePurchase}>Buy Now</button>;
-}
-```
-
-## Error Tracking
-
-```tsx
-import { trackError } from "@databuddy/sdk/react";
-
-function ErrorBoundary({ children }) {
+function CheckoutButton() {
   return (
-    <ReactErrorBoundary
-      onError={(error, errorInfo) => {
-        trackError({
-          message: error.message,
-          stack: error.stack,
-          componentStack: errorInfo.componentStack,
-        });
-      }}
-    >
-      {children}
-    </ReactErrorBoundary>
+    <button onClick={() => track("checkout_clicked", { cartSize: 3 })}>
+      Checkout
+    </button>
   );
 }
+
+// Error tracking
+try {
+  await riskyOperation();
+} catch (error) {
+  trackError(error.message, {
+    stack: error.stack,
+    error_type: error.name,
+  });
+}
 ```
+
+## SSR Safety
+
+All functions are safe to call during SSR — they no-op when `window` is undefined. The `<Databuddy />` component only injects the script on the client.

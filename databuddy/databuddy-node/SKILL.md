@@ -1,271 +1,156 @@
----
-name: databuddy-node
-description: Use the Databuddy Node.js SDK for server-side tracking with batching, middleware, and deduplication. Use when implementing analytics in Node.js servers, API routes, serverless functions, or when you need server-side event tracking with advanced features.
-metadata:
-  author: databuddy
-  version: "2.3"
----
+# Node.js SDK (`@databuddy/sdk/node`)
 
-# Databuddy Node.js SDK
+Server-side event tracking with batching, middleware, and deduplication. Also exports `ServerFlagsManager` for server-side feature flags.
 
-The Node.js SDK (`@databuddy/sdk/node`) provides server-side tracking with batching, middleware, and deduplication support.
+## Exports
 
-## External Documentation
+- `Databuddy` — Main event tracking class (also aliased as `db`)
+- `ServerFlagsManager` — Server-side flags manager class
+- `createServerFlagsManager(config)` — Factory function for `ServerFlagsManager`
 
-For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
-
-## When to Use This Skill
-
-Use this skill when:
-- Implementing server-side analytics in Node.js applications
-- Tracking events from API routes or serverless functions
-- Need event batching and deduplication
-- Want to use middleware for event transformation
-- Building custom analytics pipelines
-
-## Installation
-
-```bash
-bun add @databuddy/sdk
-```
-
-## Basic Usage
+## Quick Start
 
 ```typescript
 import { Databuddy } from "@databuddy/sdk/node";
 
 const client = new Databuddy({
-  clientId: process.env.DATABUDDY_CLIENT_ID,
+  apiKey: process.env.DATABUDDY_API_KEY!, // required, format: dbdy_xxx
 });
 
-// Track an event
 await client.track({
   name: "user_signup",
   properties: { plan: "pro", source: "web" },
 });
 
-// Important: Flush before process exit (especially in serverless)
+// Flush before exit in serverless
 await client.flush();
 ```
 
-## Configuration
+## Constructor Config
 
-### DatabuddyConfig
+```typescript
+interface DatabuddyConfig {
+  apiKey: string;                       // Required. Format: dbdy_xxx
+  apiUrl?: string;                      // Default: "https://basket.databuddy.cc"
+  websiteId?: string;                   // Default website scope for events
+  namespace?: string;                   // Default namespace (e.g., "billing", "auth")
+  source?: string;                      // Default source (e.g., "backend", "webhook")
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `clientId` | `string` | **required** | Your project client ID |
-| `apiUrl` | `string` | `https://basket.databuddy.cc` | Custom API endpoint |
-| `debug` | `boolean` | `false` | Enable debug logging |
-| `logger` | `Logger` | — | Custom logger instance |
+  // Batching
+  enableBatching?: boolean;             // Default: true
+  batchSize?: number;                   // Default: 10, max: 100
+  batchTimeout?: number;                // Default: 2000ms
+  maxQueueSize?: number;                // Default: 1000
 
-### Batching Options
+  // Deduplication
+  enableDeduplication?: boolean;        // Default: true (by eventId)
+  maxDeduplicationCacheSize?: number;   // Default: 10000
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enableBatching` | `boolean` | `true` | Enable automatic batching |
-| `batchSize` | `number` | `10` | Events per batch (max 100) |
-| `batchTimeout` | `number` | `2000` | Auto-flush timeout (ms) |
-| `maxQueueSize` | `number` | `1000` | Maximum queue size |
+  // Middleware
+  middleware?: Middleware[];             // Event transformers
 
-### Deduplication Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enableDeduplication` | `boolean` | `true` | Enable event deduplication |
-| `maxDeduplicationCacheSize` | `number` | `10000` | Max cache size |
-
-### Middleware
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `middleware` | `Middleware[]` | Array of middleware functions |
+  // Debug
+  debug?: boolean;                      // Enable debug logging
+  logger?: Logger;                      // Custom logger instance
+}
+```
 
 ## Methods
 
-### track(event)
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `track` | `(event: CustomEventInput) => Promise<EventResponse>` | Track a single event |
+| `batch` | `(events: BatchEventInput[]) => Promise<BatchEventResponse>` | Send up to 100 events at once |
+| `flush` | `() => Promise<BatchEventResponse>` | Force-send all queued events |
+| `setGlobalProperties` | `(props: GlobalProperties) => void` | Merge properties into all future events |
+| `getGlobalProperties` | `() => GlobalProperties` | Get current global properties |
+| `clearGlobalProperties` | `() => void` | Remove all global properties |
+| `addMiddleware` | `(fn: Middleware) => void` | Add event transformer/filter |
+| `clearMiddleware` | `() => void` | Remove all middleware |
+| `getDeduplicationCacheSize` | `() => number` | Get dedup cache size |
+| `clearDeduplicationCache` | `() => void` | Clear dedup cache |
 
-Track a custom event:
-
-```typescript
-await client.track({
-  name: "api_call",
-  eventId: "unique-id-123", // Optional, for deduplication
-  anonymousId: "anon-123",  // Optional
-  sessionId: "sess-123",    // Optional
-  timestamp: Date.now(),    // Optional
-  properties: {
-    endpoint: "/api/users",
-    method: "POST",
-    duration_ms: 45,
-  },
-});
-```
-
-### batch(events)
-
-Send multiple events in one request (max 100):
+## Event Input
 
 ```typescript
-await client.batch([
-  { type: "custom", name: "event1", properties: { foo: "bar" } },
-  { type: "custom", name: "event2", properties: { baz: "qux" } },
-]);
-```
-
-### flush()
-
-Manually flush all queued events:
-
-```typescript
-await client.flush();
-```
-
-### setGlobalProperties(properties)
-
-Set properties attached to all future events:
-
-```typescript
-client.setGlobalProperties({
-  environment: "production",
-  version: "1.0.0",
-  service: "api",
-});
-```
-
-### getGlobalProperties()
-
-Get current global properties:
-
-```typescript
-const globals = client.getGlobalProperties();
-```
-
-### clearGlobalProperties()
-
-Clear all global properties:
-
-```typescript
-client.clearGlobalProperties();
+interface CustomEventInput {
+  name: string;                          // Required
+  properties?: Record<string, unknown>;
+  websiteId?: string | null;             // Override default
+  namespace?: string | null;             // Override default
+  source?: string | null;                // Override default
+  eventId?: string;                      // For deduplication
+  anonymousId?: string | null;
+  sessionId?: string | null;
+  timestamp?: number | null;             // Milliseconds
+}
 ```
 
 ## Middleware
 
-Middleware functions can transform or filter events:
+Middleware runs before deduplication. Return `null` to drop the event, or return a modified event.
 
 ```typescript
-import { Databuddy } from "@databuddy/sdk/node";
-import type { Middleware } from "@databuddy/sdk/node";
+type Middleware = (event: BatchEventInput) => BatchEventInput | null | Promise<BatchEventInput | null>;
 
-// Add custom field middleware
-const addMetadata: Middleware = (event) => {
-  return {
-    ...event,
-    properties: {
-      ...event.properties,
-      processed_at: Date.now(),
-      server_id: process.env.SERVER_ID,
-    },
-  };
-};
-
-// Filter middleware (return null to drop)
-const filterInternal: Middleware = (event) => {
-  if (event.name.startsWith("internal_")) {
-    return null; // Drop internal events
-  }
+// Add custom field
+client.addMiddleware((event) => {
+  event.properties = { ...event.properties, processed: true };
   return event;
-};
-
-const client = new Databuddy({
-  clientId: "...",
-  middleware: [addMetadata, filterInternal],
 });
 
-// Or add later
+// Drop events
 client.addMiddleware((event) => {
-  console.log("Tracking:", event.name);
+  if (event.name === "unwanted_event") return null;
   return event;
 });
 ```
 
 ## Deduplication
 
-Events with the same `eventId` are automatically deduplicated:
+Events with the same `eventId` are automatically deduplicated. The cache uses FIFO eviction at `maxDeduplicationCacheSize` (default 10,000).
 
 ```typescript
-await client.track({
-  name: "webhook_received",
-  eventId: webhookId, // Same ID = deduplicated
-  properties: { type: "payment" },
-});
-
-// Check cache size
-const size = client.getDeduplicationCacheSize();
-
-// Clear cache if needed
-client.clearDeduplicationCache();
+// These will only send once
+await client.track({ name: "payment", eventId: "pay_123" });
+await client.track({ name: "payment", eventId: "pay_123" }); // Deduplicated
 ```
 
 ## Serverless Usage
 
-In serverless environments (AWS Lambda, Vercel Functions, etc.), always flush before the function ends:
+Always flush before the process exits:
 
 ```typescript
 export async function handler(event) {
-  const client = new Databuddy({ clientId: "..." });
-  
-  try {
-    // Your logic here
-    await client.track({ name: "function_invoked" });
-    
-    return { statusCode: 200 };
-  } finally {
-    // Always flush before exit
-    await client.flush();
-  }
+  const client = new Databuddy({ apiKey: process.env.DATABUDDY_API_KEY! });
+  await client.track({ name: "lambda_invocation" });
+  await client.flush(); // Ensure events are sent
+  return { statusCode: 200 };
 }
 ```
 
-## Custom Logger
-
-Provide a custom logger for integration with your logging system:
+## Server-Side Feature Flags
 
 ```typescript
-import { Databuddy } from "@databuddy/sdk/node";
+import { createServerFlagsManager } from "@databuddy/sdk/node";
 
-const client = new Databuddy({
-  clientId: "...",
-  logger: {
-    info: (msg, data) => myLogger.info(msg, data),
-    warn: (msg, data) => myLogger.warn(msg, data),
-    error: (msg, data) => myLogger.error(msg, data),
-    debug: (msg, data) => myLogger.debug(msg, data),
-  },
+const flags = createServerFlagsManager({
+  clientId: process.env.DATABUDDY_CLIENT_ID!,
+  autoFetch: true, // Default: false for server
 });
+
+await flags.waitForInit();
+
+const flag = await flags.getFlag("my-feature");
+console.log(flag.enabled, flag.value);
+
+const value = flags.getValue("pricing-tier", "free");
 ```
 
-## Types
+See [flags skill](../databuddy-flags/SKILL.md) for full feature flags documentation.
 
-```typescript
-import type {
-  DatabuddyConfig,
-  CustomEventInput,
-  BatchEventInput,
-  EventResponse,
-  BatchEventResponse,
-  GlobalProperties,
-  Middleware,
-  Logger,
-} from "@databuddy/sdk/node";
-```
+## Authentication
 
-## Alias
+The Node.js SDK authenticates via `Authorization: Bearer <apiKey>` header. The `apiKey` (format: `dbdy_xxx`) is required and must be a string.
 
-The SDK also exports `db` as a shorthand alias:
-
-```typescript
-import { db } from "@databuddy/sdk/node";
-
-const client = new db({ clientId: "..." });
-```
+Events are sent to `POST /track` on the configured `apiUrl` (default: `https://basket.databuddy.cc`). Single events send one object; batches send an array.

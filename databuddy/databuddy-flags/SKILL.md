@@ -1,325 +1,215 @@
----
-name: databuddy-flags
-description: Use Databuddy feature flags for React, Node.js, and Vue applications. Use when implementing feature flags, A/B testing, gradual rollouts, or user-targeted feature toggles.
-metadata:
-  author: databuddy
-  version: "2.3"
----
+# Feature Flags
 
-# Databuddy Feature Flags
+Feature flags across React, Vue, and Node.js. All share the same `FlagsConfig`, `FlagResult`, and `FlagState` types.
 
-The SDK provides feature flag support across all platforms (React, Node.js, Vue).
+## Shared Types
 
-## External Documentation
+```typescript
+interface FlagsConfig {
+  clientId: string;             // Required
+  apiUrl?: string;              // Default: "https://api.databuddy.cc"
+  autoFetch?: boolean;          // Default: true (browser), false (server)
+  cacheTtl?: number;            // Default: 60000ms
+  staleTime?: number;           // Default: cacheTtl / 2
+  disabled?: boolean;
+  isPending?: boolean;          // Defer evaluation until session resolves
+  skipStorage?: boolean;        // Skip localStorage (browser only)
+  debug?: boolean;
+  environment?: string;         // Target specific environment
+  defaults?: Record<string, boolean | string | number>;
+  user?: UserContext;
+}
 
-For the most up-to-date documentation, fetch: **https://databuddy.cc/llms.txt**
+interface UserContext {
+  userId?: string;
+  email?: string;
+  organizationId?: string;
+  teamId?: string;
+  properties?: Record<string, unknown>;
+}
 
-## When to Use This Skill
+interface FlagResult {
+  enabled: boolean;
+  value: boolean | string | number;
+  variant?: string;
+  payload: Record<string, unknown> | null;
+  reason: string;
+}
 
-Use this skill when:
-- Implementing feature flags in React, Next.js, Vue, or Node.js
-- Need A/B testing capabilities
-- Want user-targeted feature toggles
-- Implementing gradual rollouts
-- Need environment-based feature flags
+type FlagStatus = "loading" | "ready" | "error" | "pending";
 
-## React Feature Flags
-
-### Installation
-
-Feature flags are included in the main SDK:
-
-```bash
-bun add @databuddy/sdk
+interface FlagState {
+  on: boolean;
+  loading: boolean;
+  status: FlagStatus;
+  value?: boolean | string | number;
+  variant?: string;
+}
 ```
+
+**Reason codes:** `"DEFAULT"`, `"USER_RULE_MATCH"`, `"TARGET_GROUP_MATCH"`, `"ROLLOUT_ENABLED"`, `"ROLLOUT_DISABLED"`, `"MULTIVARIANT_EVALUATED"`, `"BOOLEAN_DEFAULT"`, `"ERROR"`, `"SESSION_PENDING"`, `"FLAG_NOT_FOUND"`, `"NO_PROVIDER"`
+
+---
+
+## React (`@databuddy/sdk/react`)
 
 ### FlagsProvider
 
-Wrap your app with `FlagsProvider`:
+Wrap your app to enable flag hooks:
 
 ```tsx
 import { FlagsProvider } from "@databuddy/sdk/react";
 
-function App() {
-  return (
-    <FlagsProvider
-      clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID}
-      user={{ userId: user?.id, email: user?.email }}
-      environment="production"
-    >
-      <YourApp />
-    </FlagsProvider>
-  );
-}
+<FlagsProvider
+  clientId="your-client-id"
+  user={{ userId: "user-123", email: "user@example.com" }}
+  environment="production"
+>
+  <App />
+</FlagsProvider>
 ```
 
-### FlagsProvider Props
+Props extend `FlagsConfig` plus `children: ReactNode`.
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `clientId` | `string` | **required** | Your project client ID |
-| `apiUrl` | `string` | Auto | Custom API endpoint |
-| `user` | `UserContext` | — | User context for targeting |
-| `environment` | `string` | — | Environment name |
-| `isPending` | `boolean` | `false` | Show pending state |
-| `disabled` | `boolean` | `false` | Disable flag fetching |
-| `autoFetch` | `boolean` | `true` | Auto-fetch flags on mount |
-| `cacheTtl` | `number` | — | Cache TTL in ms |
-| `staleTime` | `number` | — | Stale time in ms |
-| `skipStorage` | `boolean` | `false` | Skip local storage |
+### useFlag(key)
 
-### UserContext
-
-```typescript
-interface UserContext {
-  userId?: string;
-  email?: string;
-  // Additional targeting attributes
-  [key: string]: unknown;
-}
-```
-
-## Hooks
-
-### useFlag
-
-Get full flag state with loading/error handling:
+Returns a `FlagState` for a single flag. Triggers background fetch if not cached.
 
 ```tsx
 import { useFlag } from "@databuddy/sdk/react";
 
 function MyComponent() {
-  const flag = useFlag("my-feature");
-
-  if (flag.loading) {
-    return <Skeleton />;
-  }
-
-  return flag.on ? <NewFeature /> : <OldFeature />;
+  const { on, loading, value, variant } = useFlag("new-checkout");
+  if (loading) return <Skeleton />;
+  return on ? <NewCheckout /> : <OldCheckout />;
 }
 ```
 
-Returns `FlagState`:
+### useFlags()
+
+Returns the full `FlagsContext` with imperative methods:
 
 ```typescript
-interface FlagState {
-  on: boolean;           // Is flag enabled
-  enabled: boolean;      // Alias for on
-  loading: boolean;      // Is loading
-  isLoading: boolean;    // Alias for loading
-  isReady: boolean;      // Is ready
-  status: FlagStatus;    // "pending" | "loading" | "ready" | "error"
-  value?: unknown;       // Flag value (for non-boolean flags)
-  variant?: string;      // Variant name (for A/B tests)
+interface FlagsContext {
+  getFlag(key: string): FlagState;
+  isOn(key: string): boolean;
+  getValue<T>(key: string, defaultValue?: T): T;
+  fetchFlag(key: string): Promise<FlagResult>;
+  fetchAllFlags(): Promise<void>;
+  updateUser(user: UserContext): void;
+  refresh(forceClear?: boolean): Promise<void>;
+  isReady: boolean;
 }
 ```
 
-### useFeature
-
-Simple feature check with loading state:
-
 ```tsx
-import { useFeature } from "@databuddy/sdk/react";
+const { isOn, getValue, updateUser } = useFlags();
 
-function MyComponent() {
-  const { on, loading, variant } = useFeature("dark-mode");
-
-  if (loading) {
-    return <Skeleton />;
-  }
-
-  return on ? <DarkTheme /> : <LightTheme />;
+if (isOn("premium-features")) {
+  const tier = getValue("pricing-tier", "free");
 }
+
+// After login
+updateUser({ userId: "user-123", email: "user@example.com" });
 ```
 
-### useFeatureOn
+Falls back to safe defaults if used outside `FlagsProvider` (with a console warning).
 
-Boolean-only check with default value (SSR-safe):
+---
 
-```tsx
-import { useFeatureOn } from "@databuddy/sdk/react";
+## Vue (`@databuddy/sdk/vue`)
 
-function MyComponent() {
-  // Returns false while loading
-  const isDarkMode = useFeatureOn("dark-mode", false);
-
-  return isDarkMode ? <DarkTheme /> : <LightTheme />;
-}
-```
-
-### useFlagValue
-
-Get typed flag value:
-
-```tsx
-import { useFlagValue } from "@databuddy/sdk/react";
-
-function MyComponent() {
-  const maxItems = useFlagValue("max-items", 10);
-  const theme = useFlagValue<"light" | "dark">("theme", "light");
-
-  return <ItemList max={maxItems} theme={theme} />;
-}
-```
-
-### useVariant
-
-Get A/B test variant:
-
-```tsx
-import { useVariant } from "@databuddy/sdk/react";
-
-function Checkout() {
-  const variant = useVariant("checkout-experiment");
-
-  if (variant === "control") {
-    return <OldCheckout />;
-  }
-  if (variant === "treatment-a") {
-    return <NewCheckoutA />;
-  }
-  return <NewCheckoutB />;
-}
-```
-
-### useFlags
-
-Access the full flags context:
-
-```tsx
-import { useFlags } from "@databuddy/sdk/react";
-
-function MyComponent() {
-  const {
-    isOn,
-    getFlag,
-    getValue,
-    fetchFlag,
-    fetchAllFlags,
-    updateUser,
-    refresh,
-    isReady,
-  } = useFlags();
-
-  // Check if flag is on
-  const enabled = isOn("feature-x");
-
-  // Get flag with state
-  const flag = getFlag("feature-y");
-
-  // Get typed value
-  const limit = getValue<number>("rate-limit", 100);
-
-  // Update user context
-  const handleLogin = (user) => {
-    updateUser({ userId: user.id, email: user.email });
-  };
-
-  // Force refresh flags
-  const handleRefresh = () => {
-    refresh(true); // true = force clear cache
-  };
-}
-```
-
-## Patterns
-
-### Loading States
-
-```tsx
-function FeatureWithSkeleton() {
-  const { on, loading } = useFeature("new-dashboard");
-
-  if (loading) {
-    return <DashboardSkeleton />;
-  }
-
-  return on ? <NewDashboard /> : <OldDashboard />;
-}
-```
-
-### Server-Side Rendering
-
-Use `isPending` during SSR/hydration:
-
-```tsx
-// In your root layout or app
-const [isPending, startTransition] = useTransition();
-
-<FlagsProvider
-  clientId="..."
-  isPending={isPending}
-  user={user}
->
-  <App />
-</FlagsProvider>
-```
-
-### Targeting Rules
-
-Pass user attributes for targeting:
-
-```tsx
-<FlagsProvider
-  clientId="..."
-  user={{
-    userId: user.id,
-    email: user.email,
-    plan: user.subscription.plan,
-    country: user.address.country,
-    createdAt: user.createdAt,
-  }}
->
-  <App />
-</FlagsProvider>
-```
-
-### Environment-Based Flags
-
-```tsx
-<FlagsProvider
-  clientId="..."
-  environment={process.env.NODE_ENV}
->
-  <App />
-</FlagsProvider>
-```
-
-## Node.js Feature Flags
+### Plugin Setup
 
 ```typescript
-import { createFlagsManager } from "@databuddy/sdk/node";
+import { createFlagsPlugin } from "@databuddy/sdk/vue";
 
-const flags = createFlagsManager({
-  clientId: process.env.DATABUDDY_CLIENT_ID,
-});
-
-// Check flag
-const result = await flags.getFlag("feature-x", {
-  userId: "user-123",
-  email: "user@example.com",
-});
-
-if (result.enabled) {
-  // Feature is enabled
-}
-
-// Get flag value
-const limit = await flags.getValue<number>("rate-limit", {
-  userId: "user-123",
-}, 100);
-```
-
-## Vue Feature Flags
-
-```typescript
-import { createFlagsPlugin, useFlag, useFeature } from "@databuddy/sdk/vue";
-
-// Install plugin
+const app = createApp(App);
 app.use(createFlagsPlugin({
-  clientId: import.meta.env.VITE_DATABUDDY_CLIENT_ID,
+  clientId: "your-client-id",
+  user: { userId: "user-123" },
 }));
+```
 
-// In components
-const { on, loading } = useFeature("dark-mode");
+### useFlag(key)
+
+Returns reactive computed refs:
+
+```vue
+<script setup>
+import { useFlag } from "@databuddy/sdk/vue";
+
+const { on, loading, state } = useFlag("new-feature");
+</script>
+
+<template>
+  <Skeleton v-if="loading" />
+  <NewFeature v-else-if="on" />
+  <OldFeature v-else />
+</template>
+```
+
+- `on: ComputedRef<boolean>`
+- `loading: ComputedRef<boolean>`
+- `state: ComputedRef<FlagState>`
+
+### useFlags()
+
+Returns imperative methods (not reactive). Throws if plugin not installed.
+
+```typescript
+const { getFlag, fetchAllFlags, updateUser, refresh, updateConfig, memoryFlags } = useFlags();
+```
+
+---
+
+## Node.js (`@databuddy/sdk/node`)
+
+### createServerFlagsManager
+
+```typescript
+import { createServerFlagsManager } from "@databuddy/sdk/node";
+
+const flags = createServerFlagsManager({
+  clientId: process.env.DATABUDDY_CLIENT_ID!,
+  autoFetch: true,
+});
+
+await flags.waitForInit();
+```
+
+### ServerFlagsManager Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `waitForInit` | `() => Promise<void>` | Wait for initial fetch to complete |
+| `getFlag` | `(key: string, user?: UserContext) => Promise<FlagResult>` | Evaluate a single flag |
+| `fetchAllFlags` | `(user?: UserContext) => Promise<void>` | Fetch all flags |
+| `isEnabled` | `(key: string) => FlagState` | Synchronous check (uses cache) |
+| `getValue` | `<T>(key: string, defaultValue?: T) => T` | Get flag value with default |
+| `updateUser` | `(user: UserContext) => void` | Update user context and refresh |
+| `refresh` | `(forceClear?: boolean) => Promise<void>` | Re-fetch all flags |
+| `getMemoryFlags` | `() => Record<string, FlagResult>` | Get all cached flags |
+
+Differences from browser:
+- `autoFetch` defaults to `false`
+- No localStorage persistence (`skipStorage: true`)
+- Batch delay is 5ms (vs 10ms in browser)
+
+---
+
+## Caching Strategy
+
+- **LRU cache** with TTL (`cacheTtl`, default 60s)
+- **Stale-while-revalidate**: after `staleTime` (default 30s), serves cached result while fetching fresh data in background
+- **Browser persistence**: localStorage with key `db-flags` (disable with `skipStorage: true`)
+- **Request batching**: individual `getFlag` calls within the batch delay window (10ms browser, 5ms server) are combined into a single bulk API request
+
+## Auto-Tracking (Browser Only)
+
+When a flag is evaluated in the browser, a `$flag_evaluated` event is automatically tracked (deduplicated by key+value):
+
+```typescript
+// Automatically sent:
+{ name: "$flag_evaluated", properties: { flag: "new-checkout", value: true, variant: "v2", enabled: true } }
 ```
