@@ -10,7 +10,7 @@
   "homepage": "https://www.databuddy.cc/docs/api/mcp",
   "repository": "https://github.com/databuddy-analytics/skills",
   "license": "MIT",
-  "logo": "assets/logo.svg",
+  "logo": "assets/logo.png",
   "keywords": ["analytics", "web-analytics", "product-analytics", "funnels", "errors", "web-vitals", "session-replay", "feature-flags", "mcp"],
   "mcpServers": {
     "databuddy": {

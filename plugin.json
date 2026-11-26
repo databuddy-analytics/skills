@@ -55,7 +55,7 @@
         "brandColor": "#111111",
         "brandColorDark": "#F5F5F5",
         "logo": "./assets/logo.png",
-        "composerIcon": "./assets/logo.svg"
+        "composerIcon": "./assets/logo.png"
       }
     }
   }
