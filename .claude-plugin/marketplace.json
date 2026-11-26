@@ -1,0 +1,17 @@
+{
+  "name": "databuddy",
+  "description": "Databuddy analytics for Claude Code",
+  "owner": {
+    "name": "Databuddy",
+    "email": "support@databuddy.cc"
+  },
+  "plugins": [
+    {
+      "name": "databuddy",
+      "source": "./",
+      "description": "Ask about your site's traffic, signups, funnels, errors and replays, find out why a number changed, and add Databuddy tracking to your app.",
+      "category": "analytics",
+      "homepage": "https://www.databuddy.cc/docs/api/mcp"
+    }
+  ]
+}

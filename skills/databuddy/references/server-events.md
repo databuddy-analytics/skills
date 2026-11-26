@@ -8,18 +8,19 @@ Import browser helpers from `@databuddy/sdk` after installing the browser tracke
 
 | Helper | Use |
 | --- | --- |
-| `track(name, properties?)` | Send a browser custom event; safe no-op before the tracker loads |
-| `trackError(message, properties?)` | Manually send an error event; automatic errors use `trackErrors` |
+| `track(name, properties?)` | Send a browser custom event; queued until the tracker loads |
+| `trackError(error, properties?)` | Manually send an error event from an `Error` or message; automatic errors use `autocapture: { errors: true }` |
+| `identify(userId, traits?)` | Link this browser to your user ID; call again with traits to update them |
+| `reset()` | Forget the user and start new anonymous/session IDs after logout; `reset({ keepVisitor: true })` forgets the user but keeps the anonymous visit |
+| `setGlobalProperties(properties)` | Attach properties to every later event |
 | `flush()` | Force queued browser events to send before navigation |
-| `clear()` | Reset anonymous/session IDs after logout |
-| `getAnonymousId(urlParams?)` | Read the persistent anonymous ID from URL params or localStorage |
-| `getSessionId(urlParams?)` | Read the current session ID from URL params or sessionStorage |
-| `getTrackingIds(urlParams?)` | Get `{ anonId, sessionId }` together for server attribution |
-| `getTrackingParams(urlParams?)` | Build `anonId=...&sessionId=...` for cross-domain links |
-| `isTrackerAvailable()` | Check whether `window.databuddy` is loaded |
-| `getTracker()` | Access the raw tracker for advanced methods; prefer helpers by default |
+| `getIds(urlParams?)` | Get `{ anonymousId, sessionId, profileId }` for server attribution; IDs in URL params win |
+| `getStatus()` / `ready()` | Whether the tracker is loading, tracking, or disabled and why (`consent`, `bot`, `gpc`, ...); `ready()` resolves once it loads and never rejects |
+| `getTrackingParams(urlParams?)` | Build `databuddy_anonymous_id=...&databuddy_session_id=...` for cross-domain links |
+| `getRevenueMetadata()` | IDs to put in Stripe payment metadata for revenue attribution |
+| `optOut()` / `optIn()` | Stop or resume tracking this visitor, e.g. for consent; `optOut()` forgets them at once, while an opt-out key the page writes to `localStorage` itself counts only from the tracker's next observation. Visitors with Global Privacy Control or Do Not Track stay untracked |
 
-Use `getTrackingParams()` when linking or redirecting to another domain you own. The destination tracker reads `anonId` and `sessionId` from URL params.
+For links and forms to another domain you own, set `linkDomains: ["shop.example.com"]` and the tracker adds the IDs as they are used. Use `getTrackingParams()` for redirects and URLs built in code. The destination tracker adopts them from the URL (an existing visitor or session there wins), then removes them from its address bar; set `cleanUrl` to a function that calls the router's replace in Next.js's App Router or TanStack Router. The query is still visible to the destination's server and to anything it loads before the tracker, so keep its default referrer policy, and redirect server-side when the IDs must never stay in the URL.
 
 ## Node Events
 
@@ -48,25 +49,25 @@ For a browser action that completes on the server, pass browser IDs to the serve
 
 | Flow | Pattern |
 | --- | --- |
-| Browser `fetch` to API route | send `anonId` and `sessionId` from `getTrackingIds()` in the JSON body |
-| Form post or server action | populate hidden fields from `getTrackingIds()` before submit |
+| Browser `fetch` to API route | send `anonymousId` and `sessionId` from `getIds()` in the JSON body |
+| Form post or server action | populate hidden fields from `getIds()` before submit |
 | Redirect to another owned domain | append `getTrackingParams()` to the URL and install Databuddy on the destination |
-| Async job started by a user | persist `anonId` and `sessionId` with the job record; reuse them on completion/failure |
+| Async job started by a user | persist `anonymousId` and `sessionId` with the job record; reuse them on completion/failure |
 | External webhook after user setup | persist Databuddy IDs during setup and reuse them if the webhook can be tied back |
 | Pure server event | omit session IDs; include `source`, `namespace`, `status`, and operational properties |
 
 ```tsx
 // client
-import { getTrackingIds } from "@databuddy/sdk";
+import { getIds } from "@databuddy/sdk";
 
 async function createProject(projectType: string) {
-  const { anonId, sessionId } = getTrackingIds();
+  const { anonymousId, sessionId } = getIds();
 
   await fetch("/api/projects", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      anonId,
+      anonymousId,
       sessionId,
       projectType,
     }),
@@ -84,11 +85,11 @@ const databuddy = new Databuddy({
 });
 
 export async function POST(request: Request) {
-  const { anonId, sessionId, projectType } = await request.json();
+  const { anonymousId, sessionId, projectType } = await request.json();
 
   await databuddy.track({
     name: "project_created",
-    anonymousId: anonId,
+    anonymousId,
     sessionId,
     properties: { project_type: projectType },
     source: "server",
@@ -103,12 +104,12 @@ export async function POST(request: Request) {
 For form posts, put the same IDs into hidden inputs before submit:
 
 ```tsx
-import { getTrackingIds } from "@databuddy/sdk";
+import { getIds } from "@databuddy/sdk";
 
 function addTrackingFields(form: HTMLFormElement) {
-  const { anonId, sessionId } = getTrackingIds();
+  const { anonymousId, sessionId } = getIds();
 
-  for (const [name, value] of Object.entries({ anonId, sessionId })) {
+  for (const [name, value] of Object.entries({ anonymousId, sessionId })) {
     if (!value) {
       continue;
     }
@@ -128,7 +129,7 @@ function addTrackingFields(form: HTMLFormElement) {
 
 Attribution can still work partially when one ID is missing, but both IDs give the strongest session continuity. The server event also needs website scoping through `websiteId`, `DATABUDDY_WEBSITE_ID`, or API key resource scoping.
 
-Do not invent a Databuddy `identify()` helper. If the app has an identify route, it is user-owned backend code that can store or forward Databuddy `anonymousId` and `sessionId`.
+To link a backend user, call `client.identify({ profileId, anonymousId, traits })` with a `track:events` key, passing the browser's `getIds().anonymousId` value to attach that device's earlier activity. Server events for a known user can also carry `profileId` alongside `anonymousId` and `sessionId`.
 
 ## Raw Event Tracking
 

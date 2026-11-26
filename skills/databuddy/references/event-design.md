@@ -89,9 +89,9 @@ track("search_performed", {
 - Backend events are better for authoritative outcomes: signup completed, import completed, webhook processed, job failed, API request failed.
 - Track sensitive or authoritative events server-side with API keys.
 - Place tracking where the fact becomes true: before navigation for intent, after durable success for outcomes, and at terminal job/webhook states for async work.
-- When a browser flow completes on the server, pass `getTrackingIds()` output to the backend and map `anonId` to `anonymousId`.
+- When a browser flow completes on the server, pass `getIds()` output (`anonymousId`, `sessionId`) to the backend.
 
-Use declarative `trackAttributes` only for a few important CTAs or feature entry points. Do not use it as a blanket substitute for event design.
+Use declarative `data-track` attributes (`autocapture: { attributes: true }`) only for a few important CTAs or feature entry points. Do not use it as a blanket substitute for event design.
 
 ## Minimal Taxonomies
 

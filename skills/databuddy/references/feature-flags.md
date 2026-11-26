@@ -7,51 +7,61 @@ Use this file for React, Vue, and server-side flag evaluation, rollouts, experim
 - Evaluation uses `https://api.databuddy.cc/public/v1/flags/bulk`.
 - Evaluation needs a website `clientId`, not an API key.
 - Creating, editing, and deleting flags requires an API key with `manage:flags`.
-- Browser flags cache in localStorage unless `skipStorage` is true.
-- Browser flags auto-enrich anonymous users with a persistent anonymous `userId` if no `userId` or `email` is supplied.
+- Browser flags cache in localStorage unless React sets `flags={{ persist: false }}` (Vue plugin: `skipStorage: true`).
+- Browser flags auto-enrich anonymous users with a persistent anonymous `userId` if no user ID or `email` is supplied.
 - Browser single-flag fetches can emit `$flag_evaluated` with `flag`, `value`, `variant`, and `enabled` when the browser tracker exists. Bulk-prefetched or cached reads may not emit a fresh exposure event.
 - Outcome events still need to be tracked separately and should include the relevant `flag_key` and `variant` when measuring an experiment.
 
 ## React
 
+Flags are served by the same `DatabuddyProvider` that loads tracking. Wrap the app and pass the signed-in user, or `null` when signed out:
+
 ```tsx
-import { FlagsProvider, useFlag, useFlags } from "@databuddy/sdk/react";
+import { DatabuddyProvider } from "@databuddy/sdk/react";
 
 function Providers({ children, session, isPending }) {
   return (
-    <FlagsProvider
+    <DatabuddyProvider
       clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID!}
-      apiUrl="https://api.databuddy.cc"
-      isPending={isPending}
+      userPending={isPending}
       user={session?.user ? {
-        userId: session.user.id,
+        id: session.user.id,
         organizationId: session.user.organizationId,
         teamId: session.user.teamId,
-        properties: {
+        traits: {
           role: session.user.role,
           workspace_type: session.user.workspaceType,
         },
-      } : undefined}
+      } : null}
     >
       {children}
-    </FlagsProvider>
+    </DatabuddyProvider>
   );
-}
-
-function FeatureGate() {
-  const flag = useFlag("new-dashboard");
-
-  if (flag.loading) {
-    return <Skeleton />;
-  }
-
-  return flag.on ? <NewDashboard /> : <OldDashboard />;
 }
 ```
 
-Use `isPending` while auth/session data loads. This prevents an anonymous evaluation followed by a real-user evaluation that flashes the wrong UI.
+Declare each flag once with its default, then read it with `useFlag`. It returns the value, typed by the default, and never `undefined`: the default is served until flags load, when the flag is missing, and on errors.
 
-`useFlags()` exposes `isOn`, `getFlag`, `getValue`, `fetchFlag`, `fetchAllFlags`, `updateUser`, `refresh`, and `isReady`.
+```tsx
+import { defineFlag } from "@databuddy/sdk";
+import { useFlag, useFlagDetails } from "@databuddy/sdk/react";
+
+export const newDashboard = defineFlag("new-dashboard", { default: false });
+
+function FeatureGate() {
+  const { value, loading } = useFlagDetails(newDashboard);
+
+  if (loading) {
+    return <Skeleton />;
+  }
+
+  return value ? <NewDashboard /> : <OldDashboard />;
+}
+```
+
+Use `useFlag(newDashboard)` when you only need the value. Use `userPending` while auth/session data loads. This prevents an anonymous evaluation followed by a real-user evaluation that flashes the wrong UI.
+
+`useFlagDetails(flag)` returns `{ value, loading, status, variant, reason, error, id }`, where `id` is the evaluated flag definition's ID; a value whose type doesn't match the default is ignored and served as the default with reason `TYPE_MISMATCH`. `useFlagsStatus()` returns `{ isReady, error, refresh }`. Flags load the first time a component reads one. Flag options go in the provider's `flags` prop: `flags={{ environment, persist, apiUrl, clientId }}`.
 
 ## Vue
 
@@ -116,6 +126,8 @@ For long-lived servers, create one shared manager per app/runtime and pass user 
 
 ## Config Cheat Sheet
 
+In React, the provider's `user` prop supplies targeting (`id`, `email`, `organizationId`, `teamId`, `traits`), `userPending` defers evaluation, and `flags={{ apiUrl, clientId, environment, persist }}` holds the rest. Defaults come from `defineFlag`. The table below is the Vue plugin and server manager config.
+
 | Option | Use |
 | --- | --- |
 | `clientId` | Website client id; required for all flag evaluation |
@@ -126,7 +138,7 @@ For long-lived servers, create one shared manager per app/runtime and pass user 
 | `user.teamId` | Group rollouts where all team members should match |
 | `user.properties` | Low-cardinality targeting attributes |
 | `environment` | Select environment-specific definitions |
-| `isPending` | Defer browser evaluation while auth/session loads |
+| `isPending` | Defer browser evaluation while auth/session loads (React: `userPending`) |
 | `defaults` | Local fallback values by flag key |
 | `disabled` | Force all flags off |
 | `cacheTtl` / `staleTime` | Control cache expiry and background revalidation |
@@ -151,11 +163,13 @@ Direct rules and target group matches are force on/off gates. They are not varia
 Do not stop at rendering variants. Track the outcome that proves the variant mattered.
 
 ```tsx
-import { track } from "@databuddy/sdk";
-import { useFlag } from "@databuddy/sdk/react";
+import { defineFlag, track } from "@databuddy/sdk";
+import { useFlagDetails } from "@databuddy/sdk/react";
+
+const exportFlowFlag = defineFlag("export-flow", { default: "control" });
 
 function ExportButton() {
-  const exportFlow = useFlag("export-flow");
+  const exportFlow = useFlagDetails(exportFlowFlag);
 
   async function handleExport() {
     const result = await runExport();
@@ -208,11 +222,11 @@ Before recommending or adding a flag, choose:
 
 ## Good Patterns
 
-- Use `isPending` during auth and `loading` UI for first paint.
+- Use `userPending` (Vue/server: `isPending`) during auth and `loading` UI for first paint.
 - Use stable opaque user IDs for deterministic assignment.
 - Add `organizationId` or `teamId` only when the rollout unit should be grouped.
-- Use `getValue<T>(key, defaultValue)` for config-style flags.
-- Use `refresh(true)` when identity changes and you need to clear stale cache.
+- Declare config-style flags with a typed default, e.g. `defineFlag<"light" | "dark">("theme", { default: "light" })` (server: `getValue<T>(key, defaultValue)`).
+- In React, identity changes flow through the provider's `user` prop; on Vue/server use `refresh(true)` when identity changes and you need to clear stale cache.
 - Keep flag keys stable and semantic: `new-dashboard`, `export-flow`, `onboarding-checklist`.
 - Use DevTools to inspect config, readiness, cache, evaluated values, variants, and overrides.
 
@@ -221,8 +235,8 @@ Before recommending or adding a flag, choose:
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | Flags always default | wrong `clientId`, API blocked, or read before init | verify `clientId`, `connect-src`, and `waitForInit()` on server |
-| User sees anonymous flag first | session loaded after evaluation | pass `isPending` until session resolves |
+| User sees anonymous flag first | session loaded after evaluation | pass `userPending` (Vue/server: `isPending`) until session resolves |
 | Group rollout inconsistent | missing `organizationId` or `teamId` | pass the same group id for all members |
-| Variant does not change in dev | local override or cached value | clear DevTools override or call `refresh(true)` |
+| Variant does not change in dev | local override or cached value | clear DevTools override or call `refresh(true)` (React: `useFlagsStatus().refresh()`) |
 | DevTools cannot manage flags | missing admin key or scope | paste an API key with `manage:flags` |
 | Server flag reads stale | manager cache still valid | lower `cacheTtl`, call `refresh(true)`, or use per-request context |

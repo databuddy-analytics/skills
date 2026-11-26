@@ -11,18 +11,21 @@ Do not expose `DATABUDDY_API_KEY` in browser code. Browser integrations use a pu
 
 ## Choose The Surface
 
-- React or Next.js browser analytics: `@databuddy/sdk/react`; mount `<Databuddy />` near the app root.
-- Vue or Nuxt browser analytics: `@databuddy/sdk/vue`; mount `<Databuddy />` once near `RouterView`/`NuxtPage` and translate props to kebab-case in templates.
+- React or Next.js browser analytics: `@databuddy/sdk/react`; mount `<DatabuddyProvider />` near the app root, or wrap the app with it and pass `user` to sync identity and serve flags.
+- Vue or Nuxt browser analytics: `@databuddy/sdk/vue`; mount the Vue `<Databuddy />` component once near `RouterView`/`NuxtPage` and translate props to kebab-case in templates.
 - Vanilla HTML, CMS, or GTM: CDN script `https://cdn.databuddy.cc/databuddy.js` with `data-client-id`.
 - Browser custom events: `track(...)` from `@databuddy/sdk` after the tracker is installed.
-- Browser helper utilities: use `trackError`, `flush`, `clear`, `getTrackingIds`, `getTrackingParams`, `getAnonymousId`, `getSessionId`, `isTrackerAvailable`, and `getTracker` from `@databuddy/sdk` when users need manual errors, navigation safety, logout reset, attribution handoff, or advanced checks.
+- Browser helper utilities: use `trackError`, `flush`, `reset`, `getIds`, `getTrackingParams`, `getRevenueMetadata`, `setGlobalProperties`, `optOut`, and `optIn` from `@databuddy/sdk` when users need manual errors, navigation safety, logout reset, attribution handoff, revenue attribution, or consent. Use `@databuddy/sdk/react` for the provider and flag hooks.
+- Known users: in React pass `user={user ? { id, traits: { email, ... } } : null}` to `DatabuddyProvider` and it calls identify/reset for you; otherwise call `identify(profileId, traits?)` (again with new traits to update them) and `reset()` on logout from `@databuddy/sdk` (or `window.databuddy.*` with the script tag), and read the current profile with `getIds().profileId`; server-side use `client.identify({ profileId, anonymousId, traits })` or `profileId` on Node events. Identified users power the Users page, cross-device stitching, and profile retention. See `https://www.databuddy.cc/docs/sdk/identify-users`.
 - Server-side events: `@databuddy/sdk/node`; call `flush()` before a serverless/short-lived runtime exits.
-- Feature flags: React/Vue flag helpers or `createServerFlagsManager` from `@databuddy/sdk/node`; use stable user context, handle loading/pending states, and call `waitForInit()` before first server read.
+- Feature flags: React `defineFlag` + `useFlag` inside `DatabuddyProvider`, the Vue `createFlagsPlugin`, or `createServerFlagsManager` from `@databuddy/sdk/node`; use stable user context, pass `userPending` while auth loads, and call `waitForInit()` before first server read.
 - DevTools: `@databuddy/devtools`; use for local/preview inspection of tracker status, IDs, queues, event calls, flags, overrides, diagnostics, and flag management.
 - REST analytics: query API under `https://api.databuddy.cc/v1`.
+- Custom SQL over analytics (when no query type fits): `POST https://api.databuddy.cc/sql/query`. Read the table notes at `https://www.databuddy.cc/docs/api/sql-tables` (or `GET https://api.databuddy.cc/sql/schema`) before counting; see `https://www.databuddy.cc/docs/api/sql`.
 - Raw event ingestion: `POST https://basket.databuddy.cc/track`; prefer SDKs unless the user explicitly wants HTTP.
+- Migrating from PostHog: swap `posthog-js`, `posthog-js/react`, and `posthog-node` imports for `@databuddy/sdk/posthog`, `@databuddy/sdk/posthog/react`, and `@databuddy/sdk/posthog/node`; the server adapter needs `websiteId`, and privacy options such as `before_send` must be replaced with Databuddy config. See `https://www.databuddy.cc/docs/sdk/posthog`.
 
-Do not recommend `@databuddy/sdk/ai/vercel`; the public SDK currently exports only core, React, Vue, and Node entry points.
+Do not recommend `@databuddy/sdk/ai/vercel`; the public SDK exports only the core, `react`, `vue`, `node`, `agents`, `mcp`, and `posthog` entry points.
 
 If the user says "API", determine whether they mean analytics queries, event ingestion, or feature flags before writing code.
 
@@ -42,12 +45,14 @@ Read [troubleshooting.md](./references/troubleshooting.md) for CSP, blockers, wr
 | Browser analytics | `https://basket.databuddy.cc` via SDK/CDN | `clientId` | none |
 | Server events | `POST https://basket.databuddy.cc/track` | `DATABUDDY_API_KEY` | `track:events` |
 | REST analytics | `https://api.databuddy.cc/v1/query...` | `DATABUDDY_API_KEY` | `read:data` |
+| SQL analytics | `POST https://api.databuddy.cc/sql/query` | `DATABUDDY_API_KEY` | `read:data` |
 | Feature flag evaluation | `https://api.databuddy.cc/public/v1/flags...` | `clientId` | none |
 
 - API auth accepts `x-api-key: dbdy_...` or `Authorization: Bearer dbdy_...`; prefer `x-api-key` for examples unless docs for that endpoint use Bearer.
 - `websiteId` in event tracking means the public website client id, the same kind of value used by `data-client-id`; it is not necessarily an internal UUID.
-- For server-side attribution, collect `{ anonId, sessionId }` in the browser with `getTrackingIds()`, pass them to your backend, then map them to Node SDK fields `anonymousId` and `sessionId`.
-- Do not invent a Databuddy `identify()` helper or endpoint. If an app has an identify route, treat it as the user's own backend code carrying Databuddy tracking IDs.
+- For server-side attribution, collect `{ anonymousId, sessionId }` in the browser with `getIds()`, pass them to your backend, and send them as the Node SDK fields `anonymousId` and `sessionId`.
+- Visitor ID privacy is configured with `anonymizeVisitorIds` (`true`/omitted = anonymized, `false` = keeps raw IDs, `"auto"` = raw only in Databuddy's conservative country allowlist); avoid internal wording like storage or hashing in public examples.
+- `profileId` is an opaque, stable id from the customer's own database (1-128 characters), never an email. Ingestion trims it, removes control characters, HTML tags, and `<>'"&`, and collapses whitespace runs, so use plain ids such as UUIDs or database keys that this leaves unchanged. Emails and names belong in traits, which are flat scalars (50 keys, 2KB) and process personal data, so the customer needs a lawful basis such as consent.
 - Feature flag evaluation uses the main API host, not basket. It needs a website `clientId`, not API-key-only auth.
 - Feature flag management uses `manage:flags` with `x-api-key`; do not expose that key in browser source. DevTools accepts it at runtime for local/preview flag management.
 - `DATABUDDY_API_URL` is endpoint-specific. Do not reuse a basket root for query API or flags.

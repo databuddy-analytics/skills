@@ -1,0 +1,14 @@
+{
+  "name": "databuddy",
+  "version": "1.0.0",
+  "description": "Cookieless web and product analytics in Claude Code. Ask about traffic, signups, funnels, errors, Web Vitals and replays, find out why a number changed, and add Databuddy tracking to your app.",
+  "author": {
+    "name": "Databuddy",
+    "email": "support@databuddy.cc",
+    "url": "https://www.databuddy.cc"
+  },
+  "homepage": "https://www.databuddy.cc/docs/api/mcp",
+  "repository": "https://github.com/databuddy-analytics/skills",
+  "license": "MIT",
+  "keywords": ["analytics", "web-analytics", "product-analytics", "funnels", "errors", "web-vitals", "session-replay", "feature-flags", "mcp"]
+}

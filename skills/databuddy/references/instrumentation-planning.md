@@ -34,6 +34,9 @@ If only one event is worth adding, choose the authoritative completion event. If
 | Reliability | completed and failed backend outcomes | `status`, `duration_ms`, `error_type`, `provider`, `stage` |
 | Content quality | feedback or content actions | `page_type`, `source`, `rating`, `category` |
 | Experiment impact | exposure plus outcome | `flag_key`, `variant`, `feature`, `status` |
+| Retention | an activation event and a meaningful return event (not a pageview), both carrying a profile id from `identify()` or server-side `profileId` | none: the query selects only exact event names, horizon, dates, and an optional `namespace` |
+
+Retention has no dedicated dashboard page. It is the `identified_profile_retention` query: 7- or 30-day return after activation, per daily cohort, counting identified profiles only, so anonymous visitors never enter it. Ask the Databuddy agent or MCP for it with the exact activation and return event names, or query it over REST as shown in [public-surfaces.md](./public-surfaces.md).
 
 Use counts, buckets, booleans, enums, and durations. Avoid exact IDs, emails, names, raw URLs with IDs, exact search text, request bodies, tokens, and stack traces.
 
@@ -69,19 +72,18 @@ Do not track one outcome twice. If browser and server both matter, use different
 - Server outcome: track after the database write, external API success, file creation, or job completion is confirmed.
 - Server failure: track only useful expected failures; send `status: "failed"` and `error_type`, not raw messages.
 - Webhooks and jobs: include `source`, `provider`, `stage`, `status`, and `duration_ms`; include browser attribution IDs only if they were persisted earlier.
-- Forms and server actions: pass browser IDs as hidden fields or request body fields; map `anonId` to `anonymousId` and keep `sessionId`.
-- Cross-domain flows: append `getTrackingParams()` to the destination URL you control; the destination tracker can read the IDs.
-- Known users: do not send emails or names. If a stable app user key is needed, use an opaque internal id intentionally as `anonymousId`; prefer Databuddy browser IDs for web-session attribution.
-- Do not invent a Databuddy `identify()` API. App-specific identify endpoints can store or forward Databuddy IDs, but Databuddy public event tracking uses `anonymousId` and `sessionId`.
+- Forms and server actions: pass browser IDs as hidden fields or request body fields; send `anonymousId` and `sessionId` from `getIds()`.
+- Cross-domain flows: list the destination domains in `linkDomains` for links and forms, or append `getTrackingParams()` to a URL you build or redirect to; the destination tracker adopts the IDs.
+- Known users: in React pass the signed-in user (or `null`) to `DatabuddyProvider`'s `user` prop; elsewhere call `identify(profileId, traits?)` when auth resolves and `reset()` on logout; never put emails or names in event properties or `profileId`. Keep Databuddy browser IDs for web-session attribution; `identify()` links them to the user.
 
 ## Attribution Patterns
 
 | Flow | How to preserve attribution |
 | --- | --- |
-| Browser button -> API route | `getTrackingIds()` in the browser; send `{ anonId, sessionId }`; server maps to `{ anonymousId: anonId, sessionId }` |
-| Browser form -> server action | populate hidden fields from `getTrackingIds()` before submit; server maps the same fields |
-| Browser -> another owned domain | add `?${getTrackingParams()}` to the URL; install Databuddy on the destination |
-| Browser starts async job -> job finishes later | store `anonId` and `sessionId` with the job record; job completion event reuses them |
+| Browser button -> API route | `getIds()` in the browser; send `{ anonymousId, sessionId }`; server passes them to the Node SDK event |
+| Browser form -> server action | populate hidden fields from `getIds()` before submit; server reads the same fields |
+| Browser -> another owned domain | list it in `linkDomains`, or add `?${getTrackingParams()}` to a URL you build; install Databuddy on the destination |
+| Browser starts async job -> job finishes later | store `anonymousId` and `sessionId` with the job record; job completion event reuses them |
 | External webhook after user setup | persist Databuddy IDs during setup; webhook event reuses them when available |
 | Pure server/system event | omit session attribution; include `source`, `namespace`, `status`, and useful operational properties |
 

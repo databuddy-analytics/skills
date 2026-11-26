@@ -1,0 +1,11 @@
+{
+  "name": "databuddy",
+  "version": "1.0.0",
+  "description": "Cookieless web and product analytics. Ask about traffic, signups, funnels, errors, Web Vitals and replays, and find out why a number changed.",
+  "mcpServers": {
+    "databuddy": {
+      "httpUrl": "https://api.databuddy.cc/v1/mcp"
+    }
+  },
+  "contextFileName": "skills/databuddy-mcp/SKILL.md"
+}

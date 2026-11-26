@@ -83,7 +83,7 @@ Shortcut: `Cmd/Ctrl + Shift + D` toggles the overlay. `Escape` closes it.
 
 ## Feature Flag Debugging
 
-DevTools shows flags only when the browser app has mounted a flag manager through `FlagsProvider` or `createFlagsPlugin`. If no flag manager exists, the flag panel should say flags are unavailable.
+DevTools shows flags only when the browser app has a flag manager. React `DatabuddyProvider` creates it when a component first reads a flag (`useFlag`, `useFlagDetails` or `useFlagsStatus`); Vue `createFlagsPlugin` mounts it with the plugin. Until then, the flag panel should say flags are unavailable.
 
 Flag sources:
 
@@ -129,9 +129,9 @@ The default admin API host is `https://api.databuddy.cc`; local or preview envir
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| Overlay opens but tracker missing | `<Databuddy />` never mounted or `clientId` unresolved | mount the SDK near the app root and verify env |
+| Overlay opens but tracker missing | `DatabuddyProvider` (or the Vue `<Databuddy />` component) never mounted or `clientId` unresolved | mount the SDK near the app root and verify env |
 | Script present but no client id | wrapper dropped `clientId` prop | check component props and rendered script attributes |
-| Flags panel unavailable | no browser flag manager | mount `FlagsProvider` or install Vue `createFlagsPlugin` |
+| Flags panel unavailable | no browser flag manager | wrap the app in `DatabuddyProvider` and render a component that reads a flag, or install Vue `createFlagsPlugin` |
 | Flag override stuck | local override still set | clear override in DevTools |
 | Cannot fetch catalog | missing admin key or wrong API URL | paste `manage:flags` key and verify API host |
 | 403 while managing flags | key lacks access to this client | use a key scoped to the website or with broader flag access |
