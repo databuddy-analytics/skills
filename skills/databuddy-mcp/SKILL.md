@@ -1,6 +1,6 @@
 ---
 name: databuddy-mcp
-description: Use whenever the Databuddy MCP server is available and the user wants analytics, errors, vitals, investigations, flags, links, annotations, funnels, or goals queried or changed. Covers get_data, execute_sql_query, capabilities, get_schema, the investigation lifecycle, and workspace mutations. Not for SDK integration help (use databuddy) or monorepo implementation (use databuddy-internal).
+description: Use whenever the Databuddy MCP server is available and the user wants analytics, errors, vitals, investigations, flags, links, annotations, funnels, or goals queried or changed. Covers get_data, execute_sql_query, capabilities, get_schema, the investigation lifecycle, and workspace mutations. Not for SDK setup (use the databuddy skill) or changing Databuddy's own source code.
 ---
 
 # Databuddy MCP

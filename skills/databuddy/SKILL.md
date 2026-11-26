@@ -1,6 +1,6 @@
 ---
 name: databuddy
-description: Help external users integrate Databuddy into their own apps. Use for SDK setup, React/Vue/vanilla browser tracking, Node/server event tracking, custom event planning, attribution, feature flag evaluation, experiments, Databuddy DevTools, REST analytics queries, and event ingestion. Do not use for Databuddy monorepo implementation work; use databuddy-internal.
+description: Help external users integrate Databuddy into their own apps. Use for SDK setup, React/Vue/vanilla browser tracking, Node/server event tracking, custom event planning, attribution, feature flag evaluation, experiments, Databuddy DevTools, REST analytics queries, and event ingestion. Not for changing Databuddy's own source code.
 ---
 
 # Databuddy
