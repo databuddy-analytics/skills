@@ -1,7 +1,7 @@
 {
   "name": "databuddy",
-  "version": "1.0.1",
-  "description": "Cookieless web and product analytics in Claude Code. Ask about traffic, signups, funnels, errors, Web Vitals and replays, find out why a number changed, and add Databuddy tracking to your app.",
+  "version": "1.0.2",
+  "description": "See why your traffic, signups or errors moved. Ask Claude about your Databuddy web and product analytics, funnels, Web Vitals and replays, and add Databuddy tracking to your app.",
   "author": {
     "name": "Databuddy",
     "email": "support@databuddy.cc",
@@ -21,5 +21,9 @@
     "feature-flags",
     "mcp"
   ],
-  "privacyPolicyUrl": "https://www.databuddy.cc/privacy"
+  "privacyPolicyUrl": "https://www.databuddy.cc/privacy",
+  "displayName": "Databuddy",
+  "supportUrl": "https://www.databuddy.cc/contact",
+  "termsOfServiceUrl": "https://www.databuddy.cc/terms",
+  "documentationUrl": "https://www.databuddy.cc/docs/api/mcp"
 }
